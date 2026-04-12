@@ -4,20 +4,30 @@
 \alias{lp_optimal_swap}
 \title{Optimal Swap Calculation for Uniswap V3}
 \usage{
-lp_optimal_swap(price_x_usd, price_y_usd, Pa_ratio, Pb_ratio, x_init, y_init)
+lp_optimal_swap(
+  price_x_usd,
+  price_y_usd,
+  min_range,
+  max_range,
+  x_init = 0,
+  y_init = 0,
+  usd_init = 0
+)
 }
 \arguments{
 \item{price_x_usd}{Numeric. Price of token X in USD.}
 
 \item{price_y_usd}{Numeric. Price of token Y in USD.}
 
-\item{Pa_ratio}{Numeric. Lower bound of the range (expressed as amount of Y per 1 X).}
+\item{min_range}{Numeric. Lower bound of the range (expressed as amount of Y per 1 X).}
 
-\item{Pb_ratio}{Numeric. Upper bound of the range (expressed as amount of Y per 1 X).}
+\item{max_range}{Numeric. Upper bound of the range (expressed as amount of Y per 1 X).}
 
 \item{x_init}{Numeric. Initial amount of token X in the wallet.}
 
 \item{y_init}{Numeric. Initial amount of token Y in the wallet.}
+
+\item{usd_init}{Numeric. Initial amount of USD to invest (Optional).}
 }
 \value{
 A list containing the details of the action to be performed:
@@ -35,13 +45,12 @@ asset ratio before adding liquidity to a Uniswap V3 pool (or similar)
 based on a defined price range.
 }
 \examples{
-# Example usage with ETH (X) and USDC (Y)
 res <- lp_optimal_swap(
   price_x_usd = 3000,
   price_y_usd = 1,
-  Pa_ratio = 2800,
-  Pb_ratio = 3200,
+  min_range = 2800,
+  max_range = 3200,
   x_init = 1,
-  y_init = 3000
-)
+  y_init = 3000)
+
 }
