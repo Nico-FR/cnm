@@ -21,17 +21,27 @@
 #'   \item \code{token_out} : The token to buy.
 #' }
 #'
-#' @export
-#'
 #' @examples
-#' res <- lp_optimal_swap(
-#'   price_x_usd = 3000,
-#'   price_y_usd = 1,
+#' lp_optimal_swap(
+#'   price_x_usd = 3553,
+#'   price_y_usd = 1.1656,
 #'   min_range = 2800,
 #'   max_range = 3200,
 #'   x_init = 1,
-#'   y_init = 3000)
+#'   y_init = 2000,
+#'   usd_init = 0)
 #'
+#' lp_optimal_swap(
+#'   price_x_usd = 3553,
+#'   price_y_usd = 1.1656,
+#'   min_range = 2800,
+#'   max_range = 3200,
+#'   x_init = 0,
+#'   y_init = 0,
+#'   usd_init = 5884.20)
+#'
+#'
+#' @export
 lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_init = 0, y_init = 0, usd_init = 0) {
 
   # Sanity check
@@ -50,9 +60,9 @@ lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_in
   total_usd_value <- (x_init * price_x_usd) + (y_init * price_y_usd) + usd_init
 
   cat(sprintf("=== Optimal Swap Analysis ===\n"))
-  cat(sprintf("Price X: $%.2f | Price Y: $%.2f\n", price_x_usd, price_y_usd))
-  cat(sprintf("Pool relative price (Y/X): %.4f\n", P))
-  cat(sprintf("Pool Range (Y/X): [%.4f, %.4f]\n", min_range, max_range))
+  cat(sprintf("Price X: $%.3f | Price Y: $%.3f\n", price_x_usd, price_y_usd))
+  cat(sprintf("Pool relative price (X/Y): %.8f\n", P))
+  cat(sprintf("Pool Range (X/Y): [%.4f, %.4f]\n", min_range, max_range))
   cat(sprintf("Initial wallet: %.4f X, %.4f Y, $%.2f (Total Value: $%.2f)\n", x_init, y_init, usd_init, total_usd_value))
 
   # Calculate the ideal target quantities to enter the pool
@@ -91,6 +101,7 @@ lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_in
     amount_usd <- 0
     token_in <- "None"
     token_out <- "None"
+    amount_in <- "None"
 
     if (diff_x > 1e-8 && diff_y < -1e-8) {
       action <- "Swap Y for X"
@@ -98,17 +109,19 @@ lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_in
       amount_usd <- amount_to_swap * price_y_usd
       token_in <- "Y"
       token_out <- "X"
+      amount_in <- amount_usd / price_x_usd
     } else if (diff_x < -1e-8 && diff_y > 1e-8) {
       action <- "Swap X for Y"
       amount_to_swap <- abs(diff_x)
       amount_usd <- amount_to_swap * price_x_usd
       token_in <- "X"
       token_out <- "Y"
+      amount_in <- amount_usd / price_y_usd
     }
 
     if (action != "None") {
       cat(sprintf("-> Action: %s\n", action))
-      cat(sprintf("-> Amount to Swap: %.4f %s (Value: $%.2f)\n\n", amount_to_swap, token_in, amount_usd))
+      cat(sprintf("-> Amount to Swap: %.8f %s (Value: $%.4f) for %.8f %s\n\n", amount_to_swap, token_in, amount_usd, amount_in, token_out))
     } else {
       cat("-> Action: No Swap needed, ratio is perfect.\n\n")
     }

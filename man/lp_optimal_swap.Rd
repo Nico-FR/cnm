@@ -45,12 +45,23 @@ asset ratio before adding liquidity to a Uniswap V3 pool (or similar)
 based on a defined price range.
 }
 \examples{
-res <- lp_optimal_swap(
-  price_x_usd = 3000,
-  price_y_usd = 1,
+lp_optimal_swap(
+  price_x_usd = 3553,
+  price_y_usd = 1.1656,
   min_range = 2800,
   max_range = 3200,
   x_init = 1,
-  y_init = 3000)
+  y_init = 2000,
+  usd_init = 0)
+
+lp_optimal_swap(
+  price_x_usd = 3553,
+  price_y_usd = 1.1656,
+  min_range = 2800,
+  max_range = 3200,
+  x_init = 0,
+  y_init = 0,
+  usd_init = 5884.20)
+
 
 }

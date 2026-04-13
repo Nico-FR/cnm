@@ -11,7 +11,9 @@
 #' @param y_init Numeric. Initial amount of token1 (Y) in the wallet.
 #' @param usd_init Numeric. Initial amount of USD to invest.
 #'
-#' @export
+#' @importFrom httr POST add_headers content_type_json status_code content
+#' @importFrom jsonlite toJSON
+#'
 #' @examples
 #' oku_optimal_swap(
 #'  pool_address = "0xe8a249626d3f3b876b887c30a3355513cb3fa9e4",
@@ -22,6 +24,7 @@
 #'  y_init = 893.91,
 #'  usd_init = 0)
 #'
+#' @export
 oku_optimal_swap <- function(pool_address, chain, min_range, max_range, x_init = 0, y_init = 0, usd_init = 0) {
 
   # Building the Oku API URL based on the string

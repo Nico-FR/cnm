@@ -2,3 +2,9 @@
 
 export(lp_optimal_swap)
 export(oku_optimal_swap)
+importFrom(httr,POST)
+importFrom(httr,add_headers)
+importFrom(httr,content)
+importFrom(httr,content_type_json)
+importFrom(httr,status_code)
+importFrom(jsonlite,toJSON)
