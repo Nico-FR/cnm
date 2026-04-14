@@ -1,0 +1,330 @@
+---
+title: "uniswap_v3_zapIn"
+format: html
+editor: visual
+---
+
+# lp_auto_swap
+
+## Param
+
+```{r}
+pool_address = "0xd2233a4017aa610619df19fad6438770986ff2f1" #sDAI / EURe
+chain = "gnosis"
+```
+
+## fecth_price
+
+```{r}
+# Building the Oku API URL based on the string
+  url <- sprintf("https://omni.icarus.tools/%s/cush/searchPoolsByAddress", chain)
+
+  # Creating the JSON payload
+  payload <- list(
+    params = list(
+      pool_address,
+      list(
+        result_size = 2,
+        sort_by = "tvl_usd",
+        sort_order = FALSE
+      )
+    )
+  )
+
+  # Request POST
+  response <- httr::POST(
+    url,
+    httr::add_headers(Accept = "application/json"),
+    httr::content_type_json(),
+    body = jsonlite::toJSON(payload, auto_unbox = TRUE)
+  )
+
+  if (httr::status_code(response) == 200) {
+    parsed_data <- httr::content(response, as = "parsed", type = "application/json")
+
+    # Check that the pool exists
+    if (length(parsed_data$result$pools) == 0) {
+      stop("Error: No pool found for this address on this chain.")
+    }
+
+    pool <- parsed_data$result$pools[[1]]
+
+    cat(sprintf("\n=== Data retrieved via Oku (%s) ===\n", toupper(chain)))
+    cat(sprintf("Pool  : %s / %s\n", pool$t0_symbol, pool$t1_symbol))
+    cat(sprintf("y: 1 %s = $%.6f = %.6f %s\n", pool$t0_symbol, pool$t0_price_usd, pool$t0_price_usd / pool$t1_price_usd, pool$t1_symbol))
+    cat(sprintf("x: 1 %s = $%.6f = %.6f %s\n", pool$t1_symbol, pool$t1_price_usd, pool$t1_price_usd / pool$t0_price_usd, pool$t0_symbol))
+    cat(sprintf("Pool last price: %.6f\n", pool$last_price))
+    cat("=========================================\n\n")
+  }
+```
+
+```{r}
+#oku swap price
+oku_sDAI = 1000
+oku_EURe = 1104
+oku_real_price = oku_EURe / oku_sDAI; oku_real_price
+
+min_range = 1.04081
+max_range = 1.05127
+
+oku_sDAI_usd = 1237.91
+oku_EURe_usd = 1302.91
+
+#sDAI price
+oku_sDAI_price = oku_sDAI_usd / oku_sDAI; oku_sDAI_price
+
+#EURe price
+oku_EURe_price = oku_EURe_usd / oku_EURe; oku_EURe_price
+
+
+#oku_swap_sDAI_2_EURe
+#1sDAI = 1.0461267 EURe
+```
+
+
+# lp_optimal_swap
+
+## param
+
+```{r}
+sDAI_in = 1000 #(1235 USD according to price fetch)
+EURe_in = 1104 #(= 964 sDAI = 1303.5 USD according to price fetch)
+USD_in = 0
+
+      price_x_usd = pool$t1_price_usd
+      price_y_usd = pool$t0_price_usd
+      min_range = 1.04081
+      max_range = 1.05127
+      x_init      = EURe_in
+      y_init      = sDAI_in
+      usd_init    = USD_in
+
+sDAI_in_usd = y_init * price_y_usd ; sDAI_in_usd     
+EURe_in_usd = x_init * price_x_usd ; EURe_in_usd
+
+total_in_usd = EURe_in_usd + sDAI_in_usd ; total_in_usd
+
+lp_optimal_swap(price_x_usd = pool$t1_price_usd,
+      price_y_usd = pool$t0_price_usd,
+      min_range = 1.04081,
+      max_range = 1.05127,
+      x_init      = EURe_in,
+      y_init      = sDAI_in,
+      usd_init    = USD_in)
+```
+
+## basic
+
+```{r}
+  # Relative price P used by the Uniswap pool (How many Y for 1 X)
+  P <- price_y_usd /price_x_usd
+
+  # Calculate the total wallet value in USD
+  total_usd_value <- (x_init * price_x_usd) + (y_init * price_y_usd) + usd_init
+
+  cat(sprintf("=== Optimal Swap Analysis ===\n"))
+  cat(sprintf("Price X: $%.6f | Price Y: $%.6f\n", price_x_usd, price_y_usd))
+  cat(sprintf("Pool relative price (X/Y): %.8f\n", P))
+  cat(sprintf("Pool Range (X/Y): [%.4f, %.4f]\n", min_range, max_range))
+  cat(sprintf("Initial wallet: %.4f X, %.4f Y, $%.2f (Total Value: $%.2f)\n", x_init, y_init, usd_init, total_usd_value))
+```
+
+## pool distribution
+
+### using estimated price : P
+
+```{r}
+P <-  price_y_usd / price_x_usd
+
+
+ # stop if the current price is outside the range
+  if (P < min_range) {
+    stop("Current price is below the range: the pool will only consist of token X.\n")}
+  if (P > max_range) {
+    stop("Current price is above the range: the pool will only consist of token Y.\n")}
+
+  # Inside the range: calculate the required ratio R (Y / X)
+  x_req_factor <- (1 / sqrt(P) - 1 / sqrt(max_range))
+  y_req_factor <- (sqrt(P) - sqrt(min_range))
+  R <- y_req_factor / x_req_factor
+
+  # Solving the equation:
+  # x_target * price_x_usd + y_target * price_y_usd = total_usd_value
+  # and y_target = R * x_target
+  # x_target * price_x_usd + (R * x_target) * price_y_usd = total_usd_value
+  x_target <- total_usd_value / (price_x_usd + R * price_y_usd)
+  y_target <- R * x_target
+
+  # Differences compared to current inventory
+  diff_x <- x_target - x_init
+  diff_y <- y_target - y_init
+  
+    if (usd_init == 0) {
+    # Classic use case: Direct swap between X and Y
+    action <- "None"
+    amount_to_swap <- 0
+    amount_usd <- 0
+    token_in <- "None"
+    token_out <- "None"
+    amount_in <- "None"
+
+    if (diff_x > 1e-8 && diff_y < -1e-8) {
+      action <- paste0("Swap ", pool$t0_symbol, " for ", pool$t1_symbol)
+      amount_to_swap <- abs(diff_y)
+      amount_usd <- amount_to_swap * price_y_usd
+      token_in <- pool$t0_symbol
+      token_out <- pool$t1_symbol
+      amount_in <- amount_usd / price_x_usd
+    } else if (diff_x < -1e-8 && diff_y > 1e-8) {
+      action <- paste0("Swap ", pool$t1_symbol, " for ", pool$t0_symbol)
+      amount_to_swap <- abs(diff_x)
+      amount_usd <- amount_to_swap * price_x_usd
+      token_in <- pool$t1_symbol
+      token_out <- pool$t0_symbol
+      amount_in <- amount_usd / price_y_usd
+    }
+
+    if (action != "None") {
+      cat(sprintf("-> Action: %s\n", action))
+      cat(sprintf("-> Amount to Swap: %.8f %s (Value: $%.4f) for %.8f %s\n\n", amount_to_swap, token_in, amount_usd, amount_in, token_out))
+    } else {
+      cat("-> Action: No Swap needed, ratio is perfect.\n\n")
+    }
+
+    list(
+      action = action,
+      amount = amount_to_swap,
+      amount_usd = amount_usd,
+      token_in = token_in,
+      token_out = token_out,
+      target_x = x_target,
+      target_y = y_target
+    )
+
+  }
+```
+
+### using pool last price : pool$last_price
+
+```{r}
+P <- pool$last_price
+
+# stop if the current price is outside the range
+  if (P < min_range) {
+    stop("Current price is below the range: the pool will only consist of token X.\n")}
+  if (P > max_range) {
+    stop("Current price is above the range: the pool will only consist of token Y.\n")}
+
+  # Inside the range: calculate the required ratio R (Y / X)
+  x_req_factor <- (1 / sqrt(P) - 1 / sqrt(max_range))
+  y_req_factor <- (sqrt(P) - sqrt(min_range))
+  R <- y_req_factor / x_req_factor
+
+  # Solving the equation:
+  # x_target * price_x_usd + y_target * price_y_usd = total_usd_value
+  # and y_target = R * x_target
+  # x_target * price_x_usd + (R * x_target) * price_y_usd = total_usd_value
+  x_target <- total_usd_value / (price_x_usd + R * price_y_usd)
+  y_target <- R * x_target
+
+  # Differences compared to current inventory
+  diff_x <- x_target - x_init
+  diff_y <- y_target - y_init
+  
+    if (usd_init == 0) {
+    # Classic use case: Direct swap between X and Y
+    action <- "None"
+    amount_to_swap <- 0
+    amount_usd <- 0
+    token_in <- "None"
+    token_out <- "None"
+    amount_in <- "None"
+
+    if (diff_x > 1e-8 && diff_y < -1e-8) {
+      action <- paste0("Swap ", pool$t0_symbol, " for ", pool$t1_symbol)
+      amount_to_swap <- abs(diff_y)
+      amount_usd <- amount_to_swap * price_y_usd
+      token_in <- pool$t0_symbol
+      token_out <- pool$t1_symbol
+      amount_in <- amount_usd / price_x_usd
+    } else if (diff_x < -1e-8 && diff_y > 1e-8) {
+      action <- paste0("Swap ", pool$t1_symbol, " for ", pool$t0_symbol)
+      amount_to_swap <- abs(diff_x)
+      amount_usd <- amount_to_swap * price_x_usd
+      token_in <- pool$t1_symbol
+      token_out <- pool$t0_symbol
+      amount_in <- amount_usd / price_y_usd
+    }
+
+    if (action != "None") {
+      cat(sprintf("-> Action: %s\n", action))
+      cat(sprintf("-> Amount to Swap: %.8f %s (Value: $%.4f) for %.8f %s\n\n", amount_to_swap, token_in, amount_usd, amount_in, token_out))
+    } else {
+      cat("-> Action: No Swap needed, ratio is perfect.\n\n")
+    }
+
+    list(
+      action = action,
+      amount = amount_to_swap,
+      amount_usd = amount_usd,
+      token_in = token_in,
+      token_out = token_out,
+      target_x = x_target,
+      target_y = y_target
+    )
+
+  }
+```
+
+# Exemple
+
+
+
+```{r}
+pool_address = "0xd2233a4017aa610619df19fad6438770986ff2f1" #sDAI / EURe
+chain = "gnosis"
+EURe_usd = 1.180783
+sDAI_usd = 1.235215
+min_range = 1.04081
+max_range = 1.05127
+price_sDAI_EURe = sDAI_usd/EURe_usd #1.046098 (ie. 1 EURe = 1.0461 sDAI)
+price_EURe_sDAI = EURe_usd/sDAI_usd #0.9559332 (ie. 1 sDAI = 0.9559 EURe)
+
+sDAI_in = 1000 #(1232 USD)
+EURe_in = 916 #(= 964 sDAI = 1190 USD)
+# total values = 2422$
+
+lp_optimal_swap(
+  price_x_usd = sDAI_usd,
+  price_y_usd = EURe_usd,
+   min_range = min_range,
+   max_range = max_range,
+   x_init = sDAI_in,
+   y_init = EURe_in,
+   usd_init = 0)
+```
+
+```{r}
+sDAI_in = 968.8944 # 1196.793 USD
+EURe_in = 1041.54 # 1229.833 USD = 995.6429 sDAI
+t = lp_optimal_swap(
+  price_x_usd = sDAI_usd,
+  price_y_usd = EURe_usd,
+   min_range = min_range,
+   max_range = max_range,
+   x_init = sDAI_in,
+   y_init = EURe_in,
+   usd_init = 0)
+```
+```{r}
+sDAI_in = sDAI_in + EURe_in / price_sDAI_EURe
+EURe_in = 0
+lp_optimal_swap(
+  price_x_usd = sDAI_usd,
+  price_y_usd = EURe_usd,
+   min_range = min_range,
+   max_range = max_range,
+   x_init = sDAI_in,
+   y_init = EURe_in,
+   usd_init = 0)
+```

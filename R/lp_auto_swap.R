@@ -33,7 +33,7 @@
 #'   usd_init = 0)
 #'
 #' @export
-oku_optimal_swap <- function(pool_address, chain, min_range, max_range, x_init = 0, y_init = 0, usd_init = 0) {
+lp_auto_swap <- function(pool_address, chain, min_range, max_range, x_init = 0, y_init = 0, usd_init = 0) {
 
   # Building the Oku API URL based on the string
   url <- sprintf("https://omni.icarus.tools/%s/cush/searchPoolsByAddress", chain)
@@ -70,9 +70,8 @@ oku_optimal_swap <- function(pool_address, chain, min_range, max_range, x_init =
 
     cat(sprintf("\n=== Data retrieved via Oku (%s) ===\n", toupper(chain)))
     cat(sprintf("Pool  : %s / %s\n", pool$t0_symbol, pool$t1_symbol))
-    cat(sprintf("Price (y) %s : $%.6f\n", pool$t0_symbol, pool$t0_price_usd))
-    cat(sprintf("Price (x) %s : $%.6f\n", pool$t1_symbol, pool$t1_price_usd))
-    cat(sprintf("Last price : %f\n", pool$last_price))
+    cat(sprintf("Price (y) %s : $%.6f : %.6f %s\n", pool$t0_symbol, pool$t0_price_usd, pool$last_price, pool$t1_symbol))
+    cat(sprintf("Price (x) %s : $%.6f: %.6f %s\n", pool$t1_symbol, pool$t1_price_usd, 1/pool$last_price, pool$t0_symbol))
     cat("=========================================\n\n")
 
     # Call of function lp_optimal_swap

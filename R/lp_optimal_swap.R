@@ -40,7 +40,6 @@
 #'   y_init = 0,
 #'   usd_init = 5884.20)
 #'
-#'
 #' @export
 lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_init = 0, y_init = 0, usd_init = 0) {
 
@@ -60,33 +59,28 @@ lp_optimal_swap <- function(price_x_usd, price_y_usd, min_range, max_range, x_in
   total_usd_value <- (x_init * price_x_usd) + (y_init * price_y_usd) + usd_init
 
   cat(sprintf("=== Optimal Swap Analysis ===\n"))
-  cat(sprintf("Price X: $%.3f | Price Y: $%.3f\n", price_x_usd, price_y_usd))
+  cat(sprintf("Price X: $%.6f | Price Y: $%.6f\n", price_x_usd, price_y_usd))
   cat(sprintf("Pool relative price (X/Y): %.8f\n", P))
   cat(sprintf("Pool Range (X/Y): [%.4f, %.4f]\n", min_range, max_range))
   cat(sprintf("Initial wallet: %.4f X, %.4f Y, $%.2f (Total Value: $%.2f)\n", x_init, y_init, usd_init, total_usd_value))
 
-  # Calculate the ideal target quantities to enter the pool
-  if (P <= min_range) {
-    # Below range: the pool only consists of token X
-    x_target <- total_usd_value / price_x_usd
-    y_target <- 0
-  } else if (P >= max_range) {
-    # Above range: the pool only consists of token Y
-    x_target <- 0
-    y_target <- total_usd_value / price_y_usd
-  } else {
-    # Inside the range: calculate the required ratio R (Y / X)
-    x_req_factor <- (1 / sqrt(P) - 1 / sqrt(max_range))
-    y_req_factor <- (sqrt(P) - sqrt(min_range))
-    R <- y_req_factor / x_req_factor
+  # stop if the current price is outside the range
+  if (P < min_range) {
+    stop("Current price is below the range: the pool will only consist of token X.\n")}
+  if (P > max_range) {
+    stop("Current price is above the range: the pool will only consist of token Y.\n")}
 
-    # Solving the equation:
-    # x_target * price_x_usd + y_target * price_y_usd = total_usd_value
-    # and y_target = R * x_target
-    # x_target * price_x_usd + (R * x_target) * price_y_usd = total_usd_value
-    x_target <- total_usd_value / (price_x_usd + R * price_y_usd)
-    y_target <- R * x_target
-  }
+  # Inside the range: calculate the required ratio R (Y / X)
+  x_req_factor <- (1 / sqrt(P) - 1 / sqrt(max_range))
+  y_req_factor <- (sqrt(P) - sqrt(min_range))
+  R <- y_req_factor / x_req_factor
+
+  # Solving the equation:
+  # x_target * price_x_usd + y_target * price_y_usd = total_usd_value
+  # and y_target = R * x_target
+  # x_target * price_x_usd + (R * x_target) * price_y_usd = total_usd_value
+  x_target <- total_usd_value / (price_x_usd + R * price_y_usd)
+  y_target <- R * x_target
 
   # Differences compared to current inventory
   diff_x <- x_target - x_init
