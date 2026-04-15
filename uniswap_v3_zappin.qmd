@@ -81,7 +81,6 @@ oku_EURe_price = oku_EURe_usd / oku_EURe; oku_EURe_price
 #1sDAI = 1.0461267 EURe
 ```
 
-
 # lp_optimal_swap
 
 ## param
@@ -204,7 +203,7 @@ P <-  price_y_usd / price_x_usd
   }
 ```
 
-### using pool last price : pool$last_price
+### using pool last price : pool\$last_price
 
 ```{r}
 P <- pool$last_price
@@ -276,9 +275,190 @@ P <- pool$last_price
   }
 ```
 
+# Ticks
+
+La distribution des liquidités concentrées est le mécanisme fondamental d'Uniswap V3, permettant aux fournisseurs de liquidité (LP) de choisir des intervalles de prix précis plutôt que de répartir leurs fonds de zéro à l'infini.
+
+## Le Concept des Ticks
+
+Pour discrétiser la courbe de prix, Uniswap V3 utilise des points d'ancrage appelés ticks. Définition mathématique :
+
+-   Le prix $P$ à un tick d'indice $i$ est défini par la formule : $$P(i) = 1.0001^i$$
+-   Chaque tick représente donc une variation de prix de $0.01\%$ (1 point de base) par rapport à son voisin.
+-   Plage d'indices : Les indices $i$ sont des entiers compris entre $-887272$ et $887272$. Prix et Ticks : Lorsque $i=0$, le prix est de $1$ ($1.0001^0 = 1$). Les indices positifs correspondent à des prix $>1$ et les indices négatifs à des prix $<1$.
+
+## Taille et Espacement des Ticks (Tick Spacing)
+
+Tous les ticks ne peuvent pas être utilisés comme bornes pour une position. L'espacement des ticks (tick spacing) détermine la granularité autorisée et dépend du niveau de frais de la pool. Plus les actifs sont stables, plus l'espacement est réduit pour permettre une concentration extrême.
+
+| Tier de Frais | Espacement (Ticks) | Variation de prix min |
+|---------------|--------------------|-----------------------|
+| 0.01%         | 1                  | 0.01%                 |
+| 0.05%         | 10                 | 0.10%                 |
+| 0.30%         | 60                 | 0.60%                 |
+| 1.00%         | 200                | 2.02%                 |
+
+## Distribution de la Liquidité
+
+La liquidité totale à un prix donné est la somme des liquidités $L$ de toutes les positions individuelles couvrant ce prix. La liquidité $L$ est mathématiquement liée aux "réserves virtuelles" par la formule : $$L = \sqrt{x_{virtual} \cdot y_{virtual}}$$ \## Simulation et Visualisation sous R
+
+Le script suivant simule une distribution de liquidité pour une pool avec un espacement de 60 ticks (tier 0.30%).
+
+```{r}
+#| label: liquidity-distribution
+#| warning: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+
+# 1. Pool data from Oku API example
+current_price <- 1.048373
+tick_spacing <- 10
+active_liquidity <- 5.3035e12 # Normalized L for visualization
+
+# 2. Convert price to tick index
+# Formula: i = log(price) / log(1.0001)
+current_tick <- log(current_price) / log(1.0001)
+
+# 3. Simulate LP positions around current tick (multiples of 10)
+# We define ranges [Pa, Pb] where liquidity L is constant
+positions <- data.frame(
+  xmin_tick = c(400, 450, 200),
+  xmax_tick = c(550, 500, 800),
+  L = active_liquidity * c(0.4, 0.4, 0.2)
+)
+
+# 4. Generate price bins based on tick spacing
+tick_grid <- seq(150, 850, by = tick_spacing)
+dist_df <- data.frame(tick_start = tick_grid) %>%
+  mutate(
+    tick_end = tick_start + tick_spacing,
+    price_start = 1.0001^tick_start,
+    price_end = 1.0001^tick_end,
+    # Calculate aggregated L for each bin
+    total_L = sapply(tick_start, function(t) {
+      sum(positions$L[t >= positions$xmin_tick & t < positions$xmax_tick])
+    })
+  )
+
+# 5. Plotting using geom_rect for step-like bins
+ggplot(dist_df) +
+  geom_rect(aes(xmin = price_start, xmax = price_end, ymin = 0, ymax = total_L),
+            fill = "#00bcd4", alpha = 0.6, color = "white", size = 0.1) +
+  geom_vline(xintercept = current_price, color = "red", linetype = "dashed") +
+  annotate("text", x = current_price, y = max(dist_df$total_L), 
+           label = "Current Price", color = "red", angle = 90, vjust = -0.5) +
+  labs(
+    title = "Concentrated Liquidity Depth: sDAI / EURe Pool",
+    subtitle = paste("Gnosis Chain | Fee Tier 0.05% | Tick Spacing:", tick_spacing),
+    x = "Price (EURe per sDAI)",
+    y = "Liquidity Level (L)",
+    caption = "Each rectangle corresponds to a 10-tick price bin."
+  ) +
+  theme_minimal()
+```
+
+Pour représenter la distribution des quantités de sDAI et de EURe dans la plage de prix spécifiée (\[1.04289, 1.05337\]), il faut comprendre comment les actifs sont répartis de part et d'autre du prix actuel ($P_{actuel} \approx 1.048373$).
+
+### Principes de répartition des actifs dans Uniswap V3
+
+Dans une pool Uniswap V3, pour une liquidité donnée $L$ :
+
+-   En dessous du prix actuel ($P < P_{actuel}$) : Les "paliers" de liquidité sont composés à 100% de token1 (EURe). L'inventaire de sDAI a été entièrement vendu pour acheter de l'EURe.
+
+-   Au-dessus du prix actuel ($P > P_{actuel}$) : Les "paliers" de liquidité sont composés à 100% de token0 (sDAI). L'inventaire d'EURe a été entièrement vendu pour acheter du sDAI.
+
+-   Au prix actuel : La pool contient un mélange des deux actifs.
+
+Formules de calcul des quantités par palier (bin)Pour un palier de prix délimité par $[P_a, P_b]$ avec une profondeur $L$ :
+
+-   Quantité de sDAI ($x$) si $P_{actuel} < P_a$ : $x = L \cdot \left( \frac{1}{\sqrt{P_a}} - \frac{1}{\sqrt{P_b}} \right)$
+
+-   Quantité de EURe ($y$) si $P_{actuel} > P_b$ : $y = L \cdot \left( \sqrt{P_b} - \sqrt{P_a} \right)$
+
+Voici le code Quarto pour générer ce graphique de distribution.
+
+```{r}
+#| label: token-reserve-distribution
+#| warning: false
+#| message: false
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# 1. Data from your sDAI/EURe pool example
+L_raw <- 5303548336767363466492258
+L_adj <- L_raw / 10^18 # Adjusted for 18 decimals
+current_price <- 1.048373
+p_min <- 1.04289 # -1%
+p_max <- 1.05337 # +1%
+tick_spacing <- 10
+
+# 2. Convert prices to ticks to align with pool grid
+price_to_tick <- function(p) { log(p) / log(1.0001) }
+tick_to_price <- function(i) { 1.0001^i }
+
+t_start <- floor(price_to_tick(p_min) / tick_spacing) * tick_spacing
+t_end   <- ceiling(price_to_tick(p_max) / tick_spacing) * tick_spacing
+
+# 3. Generate bins based on tick spacing
+bins <- data.frame(tick_a = seq(t_start, t_end - tick_spacing, by = tick_spacing)) %>%
+  mutate(
+    tick_b = tick_a + tick_spacing,
+    pa = tick_to_price(tick_a),
+    pb = tick_to_price(tick_b),
+    mid = (pa + pb) / 2
+  ) %>%
+  rowwise() %>%
+  mutate(
+    # Logic: Bins below current price hold EURe, above hold sDAI
+    # We use the midpoint to simplify the visualization of the split
+    sdai_qty = if_else(mid > current_price, 
+                       L_adj * (1/sqrt(pa) - 1/sqrt(pb)), 0),
+    eure_qty = if_else(mid <= current_price, 
+                       L_adj * (sqrt(pb) - sqrt(pa)), 0)
+  )
+
+# 4. Reshape for plotting
+bins_long <- bins %>%
+  select(mid, pa, pb, sdai_qty, eure_qty) %>%
+  pivot_longer(cols = c(sdai_qty, eure_qty), 
+               names_to = "Token", values_to = "Quantity")
+
+# 5. Visualization
+ggplot(bins_long, aes(xmin = pa, xmax = pb, ymin = 0, ymax = Quantity, fill = Token)) +
+  geom_rect(alpha = 0.8, color = "white", size = 0.2) +
+  geom_vline(xintercept = current_price, color = "black", linetype = "dashed", size = 1) +
+  scale_fill_manual(values = c("eure_qty" = "#2ecc71", "sdai_qty" = "#f1c40f"),
+                    labels = c("EURe (Token1)", "sDAI (Token0)")) +
+  annotate("text", x = current_price, y = max(bins_long$Quantity), 
+           label = "Current Price", angle = 90, vjust = -1, fontface = "italic") +
+  labs(
+    title = "Distribution des Réserves par Palier de Prix (±1%)",
+    subtitle = "Pool sDAI / EURe - Profondeur de marché basée sur L",
+    x = "Prix (EURe per sDAI)",
+    y = "Quantité de jetons par bin (10 ticks)",
+    fill = "Actif en réserve"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+Analyse du graphique:
+
+-   La zone jaune (sDAI) : Elle représente les ordres de vente de sDAI placés au-dessus du prix du marché. Si le prix monte, les traders achètent ces sDAI et déposent de l'EURe dans la pool en échange.
+
+-   La zone verte (EURe) : Elle représente les réserves d'EURe disponibles pour acheter du sDAI si le prix baisse.
+
+-   La ligne pointillée : C'est la frontière actuelle. Tout mouvement de prix vers la droite "consomme" les rectangles jaunes et les transforme en rectangles verts.
+
+-   Asymétrie : Vous remarquerez peut-être une légère différence de hauteur. Cela est dû à la convexité de la courbe $xy=k$. Pour un même $L$, la quantité de jetons $x$ nécessaire pour couvrir 10 ticks n'est pas linéairement identique à la quantité de jetons $y$ de l'autre côté.
+
+Cette visualisation est l'outil standard pour les teneurs de marché (Market Makers) pour visualiser leur inventaire et leur exposition au risque de dépassement de range.
+
 # Exemple
-
-
 
 ```{r}
 pool_address = "0xd2233a4017aa610619df19fad6438770986ff2f1" #sDAI / EURe
@@ -316,6 +496,7 @@ t = lp_optimal_swap(
    y_init = EURe_in,
    usd_init = 0)
 ```
+
 ```{r}
 sDAI_in = sDAI_in + EURe_in / price_sDAI_EURe
 EURe_in = 0
