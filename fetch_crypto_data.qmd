@@ -1,0 +1,113 @@
+---
+title: "fetch_crypto_data"
+format: html
+editor: visual
+---
+
+# prix token
+
+## Defilam
+
+```{r}
+library(httr)
+library(jsonlite)
+
+# L'adresse du WETH sur Gnosis est 0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1
+# Note: Defillama utilise le préfixe "xdai:" pour Gnosis
+url_defillama <- "https://coins.llama.fi/prices/current/xdai:0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1"
+
+response <- GET(url_defillama)
+data <- fromJSON(content(response, "text", encoding = "UTF-8"))
+
+prix_weth_gnosis <- data$coins$`xdai:0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1`$price
+cat("Prix du WETH sur Gnosis via DefiLlama : $", prix_weth_gnosis, "\n")
+```
+
+```{r}
+token_adress = "0x2a22f9c3b484c3629090feed35f17ff8f88f76f0"
+token_symbol = "USDCe"
+
+url_defillama <- paste0("https://coins.llama.fi/prices/current/xdai:", token_adress)
+
+response <- GET(url_defillama)
+data <- fromJSON(content(response, "text", encoding = "UTF-8"))
+
+prix <- data$coins[[paste0("xdai:", token_adress)]]$price
+cat(paste0("Prix du ", token_symbol, " sur Gnosis via DefiLlama : $", prix, "\n"))
+```
+
+## DexScreener
+
+marche pas
+
+```{r}
+#| eval: false
+library(httr)
+library(jsonlite)
+
+# Adresse du contrat WETH sur Gnosis
+token_address <- "0x6a023ccd1ff6f2045c3309768ead9e68f978f6e1"
+url_dexscreener <- paste0("https://api.dexscreener.com/latest/dex/tokens/", token_address)
+
+response <- GET(url_dexscreener)
+data <- fromJSON(content(response, "text", encoding = "UTF-8"))
+
+# DexScreener renvoie toutes les pools associées à ce token, on filtre sur Gnosis
+# et on prend le premier résultat pertinent
+pairs <- data$pairs
+gnosis_pairs <- pairs[pairs$chainId == "gnosis", ]
+
+if (nrow(gnosis_pairs) > 0) {
+  prix_weth_gnosis <- as.numeric(gnosis_pairs$priceUsd[1])
+  cat("Prix du WETH sur Gnosis via DexScreener : $", prix_weth_gnosis, "\n")
+} else {
+  cat("Impossible de trouver des paires sur Gnosis pour ce token.\n")
+}
+
+```
+
+## oku
+
+```{r}
+library(httr)
+library(jsonlite)
+
+url <- "https://omni.icarus.tools/gnosis/cush/searchPoolsByAddress"
+
+# Création de la liste R qui sera convertie en JSON
+payload <- list(
+  params = list(
+    "0xe8a249626d3f3b876b887c30a3355513cb3fa9e4",
+    list(
+      result_size = 2,
+      sort_by = "tvl_usd",
+      sort_order = FALSE
+    )
+  )
+)
+
+# Requête POST vers l'API
+response <- httr::POST(
+  url,
+  add_headers(Accept = "application/json"),
+  content_type_json(),
+  body = jsonlite::toJSON(payload, auto_unbox = TRUE)
+)
+
+# Parsing de la réponse
+if (status_code(response) == 200) {
+  parsed_data <- httr::content(response, as = "parsed", type = "application/json")
+  
+  # Extraction des données de la pool
+  pool <- parsed_data$result$pools[[1]]
+  
+  cat(sprintf("Paire : %s / %s\n", pool$t0_symbol, pool$t1_symbol))
+  cat(sprintf("Dernier prix : %f\n", pool$last_price))
+  cat(paste0(pool$t0_symbol, " = ", pool$t0_price_usd, "\n"))
+  cat(paste0(pool$t1_symbol, " = ", pool$t1_price_usd, "\n"))
+  
+} else {
+  cat(sprintf("Erreur HTTP : %s\n", status_code(response)))
+}
+```
+
