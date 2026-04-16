@@ -3,6 +3,7 @@ title: "uniswap_v3_zapIn"
 format: html
 editor: visual
 ---
+
 ```{r setup}
 library(ggplot2)
 library(dplyr)
@@ -85,6 +86,18 @@ oku_EURe_price = oku_EURe_usd / oku_EURe; oku_EURe_price
 #1sDAI = 1.0461267 EURe
 ```
 
+```{r}
+# compute real ranges
+
+#min range
+price_to_tick(1.04081) %>% round() %>% tick_to_price
+
+#max range
+price_to_tick(1.05127) %>% round() %>% tick_to_price
+
+
+```
+
 # lp_optimal_swap
 
 ## param
@@ -94,8 +107,8 @@ sDAI_in = 1000 #(1235 USD according to price fetch)
 EURe_in = 1104 #(= 964 sDAI = 1303.5 USD according to price fetch)
 USD_in = 0
 
-      price_x_usd = pool$t1_price_usd
-      price_y_usd = pool$t0_price_usd
+      price_x_usd = oku_EURe/oku_EURe_usd
+      price_y_usd = oku_sDAI/oku_sDAI_usd
       min_range = 1.04081
       max_range = 1.05127
       x_init      = EURe_in
@@ -313,7 +326,7 @@ ticks_price_range <- c(1.0001^tick_start_index, 1.0001^(tick_start_index + tick_
 
 ## Distribution de la Liquidité
 
-La liquidité totale à un prix donné est la somme des liquidités $L$ de toutes les positions individuelles couvrant ce prix. La liquidité $L$ est mathématiquement liée aux "réserves virtuelles" par la formule : $$L = \sqrt{x_{virtual} \cdot y_{virtual}}$$ 
+La liquidité totale à un prix donné est la somme des liquidités $L$ de toutes les positions individuelles couvrant ce prix. La liquidité $L$ est mathématiquement liée aux "réserves virtuelles" par la formule : $$L = \sqrt{x_{virtual} \cdot y_{virtual}}$$
 
 Le script suivant simule une distribution de liquidité pour une pool avec un espacement de 60 ticks (tier 0.30%).
 

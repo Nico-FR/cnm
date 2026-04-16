@@ -31,7 +31,7 @@ tick_to_price <- function(i) {
 }
 
 
-#' Get bounding prices based on fee tier
+#' Get bounding prices according to fee tier
 #'
 #' Given a target price and a pool fee tier, this function determines
 #' the applicable tick spacing and returns the prices corresponding
@@ -46,8 +46,8 @@ tick_to_price <- function(i) {
 #' @export
 #'
 #' @examples
-#' price_to_ticks(p = 1500, fee = 500)
-#' price_to_ticks(p = 1500, fee = 3000)
+#' price_to_ticks(p = 1397, fee = 500)
+#' price_to_ticks(p = 1397, fee = 3000)
 price_to_ticks <- function(p, fee) {
   fee_dict <- list("100" = 1, "500" = 10, "3000" = 60, "10000" = 200)
   tick_spacing <- fee_dict[[as.character(fee)]]
