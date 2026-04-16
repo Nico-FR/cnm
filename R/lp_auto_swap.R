@@ -15,19 +15,19 @@
 #' @importFrom jsonlite toJSON
 #'
 #' @examples
-#' oku_optimal_swap(
+#' lp_auto_swap(
 #'  pool_address = "0xe8a249626d3f3b876b887c30a3355513cb3fa9e4",
 #'  chain = "gnosis",
-#'  min_range = 2000,
-#'  max_range = 2500,
+#'  min_range = 1000,
+#'  max_range = 3500,
 #'  x_init = 0,
 #'  y_init = 893.91,
 #'  usd_init = 0)
 #'
-#' oku_optimal_swap(pool_address = "0xc87442b49d6b18facfb8c95483fbea67c1bb96ce",
+#' lp_auto_swap(pool_address = "0xc87442b49d6b18facfb8c95483fbea67c1bb96ce",
 #'   chain = "gnosis",
-#'   min_range = 1.16579,
-#'   max_range = 1.1834,
+#'   min_range = 1.01579,
+#'   max_range = 1.3034,
 #'   x_init = 526.50,
 #'   y_init = 12738.46,
 #'   usd_init = 0)

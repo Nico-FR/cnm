@@ -63,5 +63,4 @@ lp_optimal_swap(
   y_init = 0,
   usd_init = 5884.20)
 
-
 }

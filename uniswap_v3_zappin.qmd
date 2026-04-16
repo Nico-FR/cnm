@@ -3,6 +3,10 @@ title: "uniswap_v3_zapIn"
 format: html
 editor: visual
 ---
+```{r setup}
+library(ggplot2)
+library(dplyr)
+```
 
 # lp_auto_swap
 
@@ -206,7 +210,7 @@ P <-  price_y_usd / price_x_usd
 ### using pool last price : pool\$last_price
 
 ```{r}
-P <- pool$last_price
+P <- pool$last_price # ie. last tick price (X/Y) ??
 
 # stop if the current price is outside the range
   if (P < min_range) {
@@ -298,9 +302,18 @@ Tous les ticks ne peuvent pas être utilisés comme bornes pour une position. L'
 | 0.30%         | 60                 | 0.60%                 |
 | 1.00%         | 200                | 2.02%                 |
 
+### Prices and ticks
+
+```{r}
+last_price <- 1.04812
+tick_start_index <- floor(log(last_price) / log(1.0001)) ; tick_start_index
+tick_spacing <- 10
+ticks_price_range <- c(1.0001^tick_start_index, 1.0001^(tick_start_index + tick_spacing)) ; ticks_price_range
+```
+
 ## Distribution de la Liquidité
 
-La liquidité totale à un prix donné est la somme des liquidités $L$ de toutes les positions individuelles couvrant ce prix. La liquidité $L$ est mathématiquement liée aux "réserves virtuelles" par la formule : $$L = \sqrt{x_{virtual} \cdot y_{virtual}}$$ \## Simulation et Visualisation sous R
+La liquidité totale à un prix donné est la somme des liquidités $L$ de toutes les positions individuelles couvrant ce prix. La liquidité $L$ est mathématiquement liée aux "réserves virtuelles" par la formule : $$L = \sqrt{x_{virtual} \cdot y_{virtual}}$$ 
 
 Le script suivant simule une distribution de liquidité pour une pool avec un espacement de 60 ticks (tier 0.30%).
 
@@ -389,27 +402,27 @@ library(dplyr)
 library(tidyr)
 
 # 1. Data from your sDAI/EURe pool example
-L_raw <- 5303548336767363466492258
-L_adj <- L_raw / 10^18 # Adjusted for 18 decimals
+L_raw <- 1e6 #5303548336767363466492258
+L_adj <- L_raw # / 10^18 # Adjusted for 18 decimals
 current_price <- 1.048373
-p_min <- 1.04289 # -1%
-p_max <- 1.05337 # +1%
+p_min <- 1#1.04289 # -1%
+p_max <- 1.1 # 1.05337 # +1%
 tick_spacing <- 10
 
 # 2. Convert prices to ticks to align with pool grid
-price_to_tick <- function(p) { log(p) / log(1.0001) }
-tick_to_price <- function(i) { 1.0001^i }
+#price_to_tick <- function(p) { log(p) / log(1.0001) }
+#tick_to_price <- function(i) { 1.0001^i }
 
-t_start <- floor(price_to_tick(p_min) / tick_spacing) * tick_spacing
-t_end   <- ceiling(price_to_tick(p_max) / tick_spacing) * tick_spacing
+t_start <- floor(price_to_tick(p_min) / tick_spacing) * tick_spacing # tick start for p_min
+t_end   <- ceiling(price_to_tick(p_max) / tick_spacing) * tick_spacing # tick end for p_max
 
 # 3. Generate bins based on tick spacing
-bins <- data.frame(tick_a = seq(t_start, t_end - tick_spacing, by = tick_spacing)) %>%
-  mutate(
-    tick_b = tick_a + tick_spacing,
-    pa = tick_to_price(tick_a),
-    pb = tick_to_price(tick_b),
-    mid = (pa + pb) / 2
+bins <- tibble::tibble(
+  tick_a = seq(t_start, t_end - tick_spacing, by = tick_spacing),
+  tick_b = tick_a + tick_spacing,
+  pa = tick_to_price(tick_a),
+  pb = tick_to_price(tick_b),
+  mid = (pa + pb) / 2
   ) %>%
   rowwise() %>%
   mutate(
@@ -436,10 +449,10 @@ ggplot(bins_long, aes(xmin = pa, xmax = pb, ymin = 0, ymax = Quantity, fill = To
   annotate("text", x = current_price, y = max(bins_long$Quantity), 
            label = "Current Price", angle = 90, vjust = -1, fontface = "italic") +
   labs(
-    title = "Distribution des Réserves par Palier de Prix (±1%)",
+    title = "Distribution des Réserves par Palier de Prix",
     subtitle = "Pool sDAI / EURe - Profondeur de marché basée sur L",
     x = "Prix (EURe per sDAI)",
-    y = "Quantité de jetons par bin (10 ticks)",
+    y = "Quantité de jetons par bin",
     fill = "Actif en réserve"
   ) +
   theme_minimal() +
@@ -457,6 +470,19 @@ Analyse du graphique:
 -   Asymétrie : Vous remarquerez peut-être une légère différence de hauteur. Cela est dû à la convexité de la courbe $xy=k$. Pour un même $L$, la quantité de jetons $x$ nécessaire pour couvrir 10 ticks n'est pas linéairement identique à la quantité de jetons $y$ de l'autre côté.
 
 Cette visualisation est l'outil standard pour les teneurs de marché (Market Makers) pour visualiser leur inventaire et leur exposition au risque de dépassement de range.
+
+# test
+
+```{r}
+ticks.df <- tibble::tibble(
+  tick_index = seq(-887272, 887272, by = 10), #ticks every 10 ticks for tier 0.05%
+  price_start = tick_to_price(tick_index)
+) %>% filter(price_start >= 0.0001 & price_start <= 10e3)
+
+ggplot(ticks.df, aes(y = price_start, x = tick_index)) +
+  geom_step()+
+  theme_minimal()
+```
 
 # Exemple
 
