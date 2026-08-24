@@ -1,0 +1,40 @@
+---
+title: "cnm"
+format: html
+editor: visual
+---
+
+# packages
+
+```{r setup}
+devtools::load_all()
+library(dplyr)
+library(ggplot2)
+```
+
+# lp_optimal_swap
+
+## parameters
+
+```{r}
+price_x_usd = 1.167364
+price_y_usd = 1
+min_range = 1.157654 
+max_range = 1.175149
+x_init = 1000
+y_init = 0
+usd_init = 0
+```
+
+## function
+
+```{r}
+lp_optimal_swap(price_x_usd, price_y_usd, min_range, max_range, x_init , y_init, usd_init ) 
+```
+
+## details
+
+```{r}
+
+```
+

@@ -24,12 +24,13 @@
 #'  y_init = 893.91,
 #'  usd_init = 0)
 #'
-#' lp_auto_swap(pool_address = "0xc87442b49d6b18facfb8c95483fbea67c1bb96ce",
+#' # Gnosis : EURe / USDC
+#' lp_auto_swap(pool_address = "0xc87442b49d6b18facfb8c95483fbea67c1bb96ce", 
 #'   chain = "gnosis",
-#'   min_range = 1.01579,
-#'   max_range = 1.3034,
-#'   x_init = 526.50,
-#'   y_init = 12738.46,
+#'   min_range = 1.015521,
+#'   max_range = 1.25031,
+#'   x_init = 500,
+#'   y_init = 0,
 #'   usd_init = 0)
 #'
 #' @export
@@ -70,14 +71,14 @@ lp_auto_swap <- function(pool_address, chain, min_range, max_range, x_init = 0, 
 
     cat(sprintf("\n=== Data retrieved via Oku (%s) ===\n", toupper(chain)))
     cat(sprintf("Pool  : %s / %s\n", pool$t0_symbol, pool$t1_symbol))
-    cat(sprintf("Price (y) %s : $%.6f : %.6f %s\n", pool$t0_symbol, pool$t0_price_usd, pool$last_price, pool$t1_symbol))
-    cat(sprintf("Price (x) %s : $%.6f: %.6f %s\n", pool$t1_symbol, pool$t1_price_usd, 1/pool$last_price, pool$t0_symbol))
+    cat(sprintf("Price (y) 1 %s = $%.6f = %.6f %s\n", pool$t0_symbol, pool$t0_price_usd, pool$last_price, pool$t1_symbol))
+    cat(sprintf("Price (x) 1 %s = $%.6f = %.6f %s\n", pool$t1_symbol, pool$t1_price_usd, 1/pool$last_price, pool$t0_symbol))
     cat("=========================================\n\n")
 
     # Call of function lp_optimal_swap
     result <- lp_optimal_swap(
-      price_x_usd = pool$t1_price_usd,
-      price_y_usd = pool$t0_price_usd,
+      price_y_usd = pool$t1_price_usd,
+      price_x_usd = pool$t0_price_usd,
       min_range   = min_range,
       max_range   = max_range,
       x_init      = x_init,
